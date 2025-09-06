@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, List, Dict, Any
 
+
 class BaseProvider(ABC):
     """Classe base astratta per tutti i provider di modelli AI."""
 
@@ -10,7 +11,7 @@ class BaseProvider(ABC):
     ) -> AsyncGenerator[str, None]:
         """
         Metodo principale per lo streaming delle completion.
-        
+
         Args:
             messages: Una lista di messaggi nel formato standard di chat.
             settings: Un dizionario di impostazioni (es. temperature, max_tokens).

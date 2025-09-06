@@ -1,18 +1,16 @@
 """Test module for ModelRouter service."""
+
 import pytest
 import yaml
-import unittest.mock as mock
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open
 
 from app.services.model_router import ModelRouter
 from app.providers.base_provider import BaseProvider
-from app.providers.ollama_provider import OllamaProvider
-from app.providers.openai_provider import OpenAIProvider
 
 
 class MockProvider(BaseProvider):
     """Mock provider for testing."""
-    
+
     async def stream_completion(self, messages, settings):
         """Mock stream completion."""
         yield "mock response"
@@ -29,7 +27,9 @@ class TestModelRouter:
     @patch("yaml.safe_load")
     @patch("app.services.model_router.OllamaProvider")
     @patch("app.services.model_router.OpenAIProvider")
-    def test_load_models_success(self, mock_openai_provider, mock_ollama_provider, mock_yaml_load, mock_file):
+    def test_load_models_success(
+        self, mock_openai_provider, mock_ollama_provider, mock_yaml_load, mock_file
+    ):
         """Test successful loading of models from YAML file."""
         # Setup mock providers
         mock_ollama_instance = MockProvider()
@@ -41,14 +41,8 @@ class TestModelRouter:
         # Mock YAML content
         mock_yaml_content = {
             "models": [
-                {
-                    "id": "llama3:latest",
-                    "provider": "ollama"
-                },
-                {
-                    "id": "gpt-4o",
-                    "provider": "openai"
-                }
+                {"id": "llama3:latest", "provider": "ollama"},
+                {"id": "gpt-4o", "provider": "openai"},
             ]
         }
         mock_yaml_load.return_value = mock_yaml_content
@@ -60,7 +54,7 @@ class TestModelRouter:
         assert len(self.model_router.model_providers) == 2
         assert "llama3:latest" in self.model_router.model_providers
         assert "gpt-4o" in self.model_router.model_providers
-        
+
         assert len(self.model_router.model_configs) == 2
         assert self.model_router.model_configs["llama3:latest"]["provider"] == "ollama"
         assert self.model_router.model_configs["gpt-4o"]["provider"] == "openai"
@@ -72,7 +66,9 @@ class TestModelRouter:
     @patch("builtins.open", side_effect=FileNotFoundError)
     def test_load_models_file_not_found(self, mock_file):
         """Test handling of missing YAML file."""
-        with pytest.raises(FileNotFoundError, match="File di configurazione modelli non trovato"):
+        with pytest.raises(
+            FileNotFoundError, match="File di configurazione modelli non trovato"
+        ):
             self.model_router.load_models("nonexistent.yml")
 
     @patch("builtins.open", new_callable=mock_open)
@@ -87,8 +83,10 @@ class TestModelRouter:
     def test_load_models_missing_models_section(self, mock_yaml_load, mock_file):
         """Test handling of YAML file without 'models' section."""
         mock_yaml_load.return_value = {"invalid": "structure"}
-        
-        with pytest.raises(ValueError, match="File di configurazione modelli non valido"):
+
+        with pytest.raises(
+            ValueError, match="File di configurazione modelli non valido"
+        ):
             self.model_router.load_models("invalid_structure.yml")
 
     @patch("builtins.open", new_callable=mock_open)
@@ -169,7 +167,10 @@ class TestModelRouter:
         provider = self.model_router._create_provider("unsupported_provider")
         assert provider is None
 
-    @patch("app.services.model_router.OllamaProvider", side_effect=Exception("Provider creation failed"))
+    @patch(
+        "app.services.model_router.OllamaProvider",
+        side_effect=Exception("Provider creation failed"),
+    )
     def test_create_provider_creation_error(self, mock_ollama_provider):
         """Test handling of provider creation errors."""
         provider = self.model_router._create_provider("ollama")
@@ -234,7 +235,9 @@ class TestModelRouter:
     @patch("builtins.open", new_callable=mock_open)
     @patch("yaml.safe_load")
     @patch("app.services.model_router.OllamaProvider")
-    def test_load_models_with_unsupported_provider(self, mock_ollama_provider, mock_yaml_load, mock_file):
+    def test_load_models_with_unsupported_provider(
+        self, mock_ollama_provider, mock_yaml_load, mock_file
+    ):
         """Test loading models with unsupported provider type."""
         mock_ollama_instance = MockProvider()
         mock_ollama_provider.return_value = mock_ollama_instance
@@ -242,14 +245,8 @@ class TestModelRouter:
         # Mock YAML content with unsupported provider
         mock_yaml_content = {
             "models": [
-                {
-                    "id": "good-model",
-                    "provider": "ollama"
-                },
-                {
-                    "id": "bad-model", 
-                    "provider": "unsupported_provider"
-                }
+                {"id": "good-model", "provider": "ollama"},
+                {"id": "bad-model", "provider": "unsupported_provider"},
             ]
         }
         mock_yaml_load.return_value = mock_yaml_content
@@ -260,7 +257,7 @@ class TestModelRouter:
         # Verify only supported model was loaded
         assert "good-model" in self.model_router.model_providers
         assert "bad-model" not in self.model_router.model_providers
-        
+
         # But config should still be stored for both
         assert "good-model" in self.model_router.model_configs
         assert "bad-model" in self.model_router.model_configs
@@ -269,7 +266,9 @@ class TestModelRouter:
     @patch("yaml.safe_load")
     @patch("app.services.model_router.OllamaProvider")
     @patch("app.services.model_router.OpenAIProvider")
-    def test_load_models_mixed_success_and_failure(self, mock_openai_provider, mock_ollama_provider, mock_yaml_load, mock_file):
+    def test_load_models_mixed_success_and_failure(
+        self, mock_openai_provider, mock_ollama_provider, mock_yaml_load, mock_file
+    ):
         """Test loading models with mix of successful and failed provider creations."""
         # Setup providers - Ollama succeeds, OpenAI fails due to no API key
         mock_ollama_instance = MockProvider()
@@ -281,14 +280,8 @@ class TestModelRouter:
 
         mock_yaml_content = {
             "models": [
-                {
-                    "id": "llama3:latest",
-                    "provider": "ollama"
-                },
-                {
-                    "id": "gpt-4o",
-                    "provider": "openai"
-                }
+                {"id": "llama3:latest", "provider": "ollama"},
+                {"id": "gpt-4o", "provider": "openai"},
             ]
         }
         mock_yaml_load.return_value = mock_yaml_content
@@ -299,7 +292,7 @@ class TestModelRouter:
         # Verify only Ollama model was loaded to providers
         assert "llama3:latest" in self.model_router.model_providers
         assert "gpt-4o" not in self.model_router.model_providers
-        
+
         # But both configs should be stored
         assert len(self.model_router.model_configs) == 2
 
@@ -314,7 +307,7 @@ class TestModelRouter:
                     "provider": "ollama",
                     "temperature": 0.7,
                     "max_tokens": 1000,
-                    "custom_setting": "custom_value"
+                    "custom_setting": "custom_value",
                 }
             ]
         }
@@ -322,7 +315,7 @@ class TestModelRouter:
 
         with patch("app.services.model_router.OllamaProvider") as mock_provider:
             mock_provider.return_value = MockProvider()
-            
+
             # Load models
             self.model_router.load_models("test.yml")
 
