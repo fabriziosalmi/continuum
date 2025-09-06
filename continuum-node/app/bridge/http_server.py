@@ -165,6 +165,18 @@ class HTTPServer:
             except ImportError:
                 return {"error": "psutil not available"}
     
+    def _get_memory_usage(self):
+        """Ottiene info sulla memoria (se disponibile)."""
+        try:
+            import psutil
+            process = psutil.Process()
+            return {
+                "rss_mb": process.memory_info().rss / 1024 / 1024,
+                "cpu_percent": process.cpu_percent()
+            }
+        except ImportError:
+            return {"error": "psutil not available"}
+    
     def _register_routes(self) -> None:
         """Registra tutte le rotte dell'API."""
         

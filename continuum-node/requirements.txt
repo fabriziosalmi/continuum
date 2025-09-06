@@ -7,3 +7,6 @@ requests
 slowapi
 ruff
 pytest
+pytest-asyncio
+httpx
+aioresponses
