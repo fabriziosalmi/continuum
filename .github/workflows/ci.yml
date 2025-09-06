@@ -26,7 +26,9 @@ jobs:
     - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~\AppData\Local\pip\Cache
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -40,16 +42,22 @@ jobs:
       run: |
         cd continuum-node
         ruff check .
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
 
     - name: Lint with ruff - Format Check
       run: |
         cd continuum-node
         ruff format --check .
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
 
     - name: Test with pytest
       run: |
         cd continuum-node
         pytest
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
 
   docker-build:
     runs-on: ubuntu-latest
