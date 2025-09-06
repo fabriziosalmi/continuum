@@ -2,6 +2,7 @@
 Basic test suite for continuum application.
 """
 
+
 def test_imports():
     """Test that main application modules can be imported."""
     try:
@@ -9,6 +10,9 @@ def test_imports():
         import app.core.server
         import app.services.auth_manager
         import app.services.model_router
+
+        # Verify imports are accessible
+        assert hasattr(app.services.model_router, "ModelRouter")
         assert True
     except ImportError as e:
         assert False, f"Import failed: {e}"

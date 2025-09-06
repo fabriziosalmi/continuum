@@ -1,9 +1,9 @@
 """Test module for Provider classes."""
+
 import pytest
 import aiohttp
 import json
-from unittest.mock import patch, Mock, AsyncMock, MagicMock
-from aioresponses import aioresponses
+from unittest.mock import patch, Mock, AsyncMock
 
 from app.providers.ollama_provider import OllamaProvider
 from app.providers.openai_provider import OpenAIProvider
@@ -11,14 +11,14 @@ from app.providers.openai_provider import OpenAIProvider
 
 class AsyncIteratorMock:
     """Mock async iterator for testing."""
-    
+
     def __init__(self, data):
         self.data = data
         self.index = 0
-    
+
     def __aiter__(self):
         return self
-    
+
     async def __anext__(self):
         if self.index >= len(self.data):
             raise StopAsyncIteration
@@ -53,9 +53,13 @@ class TestOllamaProvider:
 
         # Mock response data
         mock_responses = [
-            json.dumps({"message": {"content": "Hello"}, "done": False}).encode('utf-8'),
-            json.dumps({"message": {"content": " there"}, "done": False}).encode('utf-8'),
-            json.dumps({"message": {"content": "!"}, "done": True}).encode('utf-8')
+            json.dumps({"message": {"content": "Hello"}, "done": False}).encode(
+                "utf-8"
+            ),
+            json.dumps({"message": {"content": " there"}, "done": False}).encode(
+                "utf-8"
+            ),
+            json.dumps({"message": {"content": "!"}, "done": True}).encode("utf-8"),
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -80,13 +84,12 @@ class TestOllamaProvider:
             "model": "custom-model",
             "temperature": 0.8,
             "max_tokens": 100,
-            "top_p": 0.9
+            "top_p": 0.9,
         }
 
-        mock_response_data = json.dumps({
-            "message": {"content": "Response"},
-            "done": True
-        }).encode('utf-8')
+        mock_response_data = json.dumps(
+            {"message": {"content": "Response"}, "done": True}
+        ).encode("utf-8")
 
         with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
@@ -102,7 +105,7 @@ class TestOllamaProvider:
             # Verify the request was made with correct payload
             mock_post.assert_called_once()
             call_args = mock_post.call_args
-            
+
             # Check the JSON payload
             expected_payload = {
                 "model": "custom-model",
@@ -111,8 +114,8 @@ class TestOllamaProvider:
                 "options": {
                     "temperature": 0.8,
                     "num_predict": 100,  # max_tokens mapped to num_predict
-                    "top_p": 0.9
-                }
+                    "top_p": 0.9,
+                },
             }
             assert call_args[1]["json"] == expected_payload
 
@@ -138,7 +141,10 @@ class TestOllamaProvider:
         messages = [{"role": "user", "content": "Test"}]
         settings = {"model": "llama3:latest"}
 
-        with patch("aiohttp.ClientSession.post", side_effect=aiohttp.ClientError("Network error")):
+        with patch(
+            "aiohttp.ClientSession.post",
+            side_effect=aiohttp.ClientError("Network error"),
+        ):
             with pytest.raises(Exception, match="Network error connecting to Ollama"):
                 async for chunk in self.provider.stream_completion(messages, settings):
                     pass
@@ -152,7 +158,7 @@ class TestOllamaProvider:
         # Mock response with invalid JSON
         invalid_responses = [
             b"invalid json",
-            json.dumps({"message": {"content": "valid"}, "done": True}).encode('utf-8')
+            json.dumps({"message": {"content": "valid"}, "done": True}).encode("utf-8"),
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -176,9 +182,11 @@ class TestOllamaProvider:
 
         # Mock responses with empty content
         mock_responses = [
-            json.dumps({"message": {"content": ""}, "done": False}).encode('utf-8'),
-            json.dumps({"message": {"content": "actual content"}, "done": False}).encode('utf-8'),
-            json.dumps({"message": {"content": ""}, "done": True}).encode('utf-8')
+            json.dumps({"message": {"content": ""}, "done": False}).encode("utf-8"),
+            json.dumps(
+                {"message": {"content": "actual content"}, "done": False}
+            ).encode("utf-8"),
+            json.dumps({"message": {"content": ""}, "done": True}).encode("utf-8"),
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -224,16 +232,34 @@ class TestOpenAIProvider:
 
         # Mock SSE response data
         mock_responses = [
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": "Hello"}, "finish_reason": None}]
-            }) + "\n").encode('utf-8'),
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": " world"}, "finish_reason": None}]
-            }) + "\n").encode('utf-8'),
-            ("data: " + json.dumps({
-                "choices": [{"delta": {}, "finish_reason": "stop"}]
-            }) + "\n").encode('utf-8'),
-            b"data: [DONE]\n"
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {"delta": {"content": "Hello"}, "finish_reason": None}
+                        ]
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {"delta": {"content": " world"}, "finish_reason": None}
+                        ]
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            (
+                "data: "
+                + json.dumps({"choices": [{"delta": {}, "finish_reason": "stop"}]})
+                + "\n"
+            ).encode("utf-8"),
+            b"data: [DONE]\n",
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -259,7 +285,9 @@ class TestOpenAIProvider:
         messages = [{"role": "user", "content": "Test"}]
         settings = {"model": "gpt-4o"}
 
-        with pytest.raises(ValueError, match="OPENAI_API_KEY environment variable is required"):
+        with pytest.raises(
+            ValueError, match="OPENAI_API_KEY environment variable is required"
+        ):
             async for chunk in provider.stream_completion(messages, settings):
                 pass
 
@@ -273,20 +301,27 @@ class TestOpenAIProvider:
             "max_tokens": 100,
             "top_p": 0.9,
             "frequency_penalty": 0.5,
-            "presence_penalty": 0.3
+            "presence_penalty": 0.3,
         }
 
-        mock_response_data = ("data: " + json.dumps({
-            "choices": [{"delta": {"content": "Response"}, "finish_reason": "stop"}]
-        }) + "\n").encode('utf-8')
+        mock_response_data = (
+            "data: "
+            + json.dumps(
+                {
+                    "choices": [
+                        {"delta": {"content": "Response"}, "finish_reason": "stop"}
+                    ]
+                }
+            )
+            + "\n"
+        ).encode("utf-8")
 
         with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
-            mock_response.content = AsyncIteratorMock([
-                mock_response_data,
-                b"data: [DONE]\n"
-            ])
+            mock_response.content = AsyncIteratorMock(
+                [mock_response_data, b"data: [DONE]\n"]
+            )
             mock_post.return_value.__aenter__.return_value = mock_response
 
             # Process stream
@@ -297,7 +332,7 @@ class TestOpenAIProvider:
             # Verify the request was made with correct payload
             mock_post.assert_called_once()
             call_args = mock_post.call_args
-            
+
             expected_payload = {
                 "model": "gpt-3.5-turbo",
                 "messages": messages,
@@ -306,14 +341,14 @@ class TestOpenAIProvider:
                 "max_tokens": 100,
                 "top_p": 0.9,
                 "frequency_penalty": 0.5,
-                "presence_penalty": 0.3
+                "presence_penalty": 0.3,
             }
             assert call_args[1]["json"] == expected_payload
 
             # Verify headers
             expected_headers = {
                 "Authorization": "Bearer test-api-key",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             assert call_args[1]["headers"] == expected_headers
 
@@ -339,7 +374,10 @@ class TestOpenAIProvider:
         messages = [{"role": "user", "content": "Test"}]
         settings = {"model": "gpt-4o"}
 
-        with patch("aiohttp.ClientSession.post", side_effect=aiohttp.ClientError("Network error")):
+        with patch(
+            "aiohttp.ClientSession.post",
+            side_effect=aiohttp.ClientError("Network error"),
+        ):
             with pytest.raises(Exception, match="Network error connecting to OpenAI"):
                 async for chunk in self.provider.stream_completion(messages, settings):
                     pass
@@ -355,10 +393,18 @@ class TestOpenAIProvider:
             b"invalid sse line\n",
             b": this is a comment\n",
             b"\n",  # empty line
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": "valid"}, "finish_reason": "stop"}]
-            }) + "\n").encode('utf-8'),
-            b"data: [DONE]\n"
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {"delta": {"content": "valid"}, "finish_reason": "stop"}
+                        ]
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            b"data: [DONE]\n",
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -383,10 +429,18 @@ class TestOpenAIProvider:
         # Mock response with invalid JSON in data lines
         responses = [
             b"data: invalid json\n",
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": "valid"}, "finish_reason": None}]
-            }) + "\n").encode('utf-8'),
-            b"data: [DONE]\n"
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {"delta": {"content": "valid"}, "finish_reason": None}
+                        ]
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            b"data: [DONE]\n",
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
@@ -409,16 +463,41 @@ class TestOpenAIProvider:
         settings = {"model": "gpt-4o"}
 
         responses = [
-            ("data: " + json.dumps({
-                "choices": [{"delta": {}, "finish_reason": None}]  # No content
-            }) + "\n").encode('utf-8'),
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": "actual content"}, "finish_reason": None}]
-            }) + "\n").encode('utf-8'),
-            ("data: " + json.dumps({
-                "choices": [{"delta": {"content": ""}, "finish_reason": None}]  # Empty content
-            }) + "\n").encode('utf-8'),
-            b"data: [DONE]\n"
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [{"delta": {}, "finish_reason": None}]  # No content
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {
+                                "delta": {"content": "actual content"},
+                                "finish_reason": None,
+                            }
+                        ]
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            (
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [
+                            {"delta": {"content": ""}, "finish_reason": None}
+                        ]  # Empty content
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            b"data: [DONE]\n",
         ]
 
         with patch("aiohttp.ClientSession.post") as mock_post:

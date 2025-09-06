@@ -1,9 +1,7 @@
 """Test module for AuthManager service."""
+
 import pytest
-import unittest.mock as mock
-import tempfile
 import yaml
-import os
 from unittest.mock import patch, mock_open
 
 from app.services.auth_manager import AuthManager, User
@@ -22,7 +20,7 @@ class TestAuthManager:
             token="test-token",
             name="Test User",
             permissions=["model1", "model2"],
-            rate_limit="10/minute"
+            rate_limit="10/minute",
         )
         assert user.token == "test-token"
         assert user.name == "Test User"
@@ -40,14 +38,14 @@ class TestAuthManager:
                     "token": "dev-token",
                     "name": "Developer",
                     "permissions": ["llama3:latest", "gpt-4o"],
-                    "rate_limit": "100/minute"
+                    "rate_limit": "100/minute",
                 },
                 {
                     "token": "guest-token",
                     "name": "Guest",
                     "permissions": ["llama3:latest"],
-                    "rate_limit": "10/minute"
-                }
+                    "rate_limit": "10/minute",
+                },
             ]
         }
         mock_yaml_load.return_value = mock_yaml_content
@@ -59,7 +57,7 @@ class TestAuthManager:
         assert len(self.auth_manager.users) == 2
         assert "dev-token" in self.auth_manager.users
         assert "guest-token" in self.auth_manager.users
-        
+
         dev_user = self.auth_manager.users["dev-token"]
         assert dev_user.name == "Developer"
         assert dev_user.permissions == ["llama3:latest", "gpt-4o"]
@@ -68,7 +66,9 @@ class TestAuthManager:
     @patch("builtins.open", side_effect=FileNotFoundError)
     def test_load_users_file_not_found(self, mock_file):
         """Test handling of missing YAML file."""
-        with pytest.raises(FileNotFoundError, match="File di configurazione utenti non trovato"):
+        with pytest.raises(
+            FileNotFoundError, match="File di configurazione utenti non trovato"
+        ):
             self.auth_manager.load_users("nonexistent.yml")
 
     @patch("builtins.open", new_callable=mock_open)
@@ -83,8 +83,10 @@ class TestAuthManager:
     def test_load_users_missing_users_section(self, mock_yaml_load, mock_file):
         """Test handling of YAML file without 'users' section."""
         mock_yaml_load.return_value = {"invalid": "structure"}
-        
-        with pytest.raises(ValueError, match="File di configurazione utenti non valido"):
+
+        with pytest.raises(
+            ValueError, match="File di configurazione utenti non valido"
+        ):
             self.auth_manager.load_users("invalid_structure.yml")
 
     @patch("builtins.open", new_callable=mock_open)
@@ -95,7 +97,7 @@ class TestAuthManager:
             "users": [
                 {
                     "name": "User Without Token",
-                    "permissions": ["model1"]
+                    "permissions": ["model1"],
                     # Missing 'token' field
                 }
             ]
@@ -112,7 +114,7 @@ class TestAuthManager:
             token="valid-token",
             name="Test User",
             permissions=["model1"],
-            rate_limit="10/minute"
+            rate_limit="10/minute",
         )
         self.auth_manager.users["valid-token"] = user
 
@@ -144,7 +146,7 @@ class TestAuthManager:
             token="auth-token",
             name="Auth User",
             permissions=["llama3:latest", "gpt-4o"],
-            rate_limit="10/minute"
+            rate_limit="10/minute",
         )
         self.auth_manager.users["auth-token"] = user
 
@@ -159,13 +161,16 @@ class TestAuthManager:
             token="limited-token",
             name="Limited User",
             permissions=["llama3:latest"],
-            rate_limit="10/minute"
+            rate_limit="10/minute",
         )
         self.auth_manager.users["limited-token"] = user
 
         # Test authorization for non-allowed model
         assert self.auth_manager.is_authorized("limited-token", "gpt-4o") is False
-        assert self.auth_manager.is_authorized("limited-token", "nonexistent-model") is False
+        assert (
+            self.auth_manager.is_authorized("limited-token", "nonexistent-model")
+            is False
+        )
 
     def test_is_authorized_invalid_token(self):
         """Test authorization with invalid token."""
@@ -178,7 +183,7 @@ class TestAuthManager:
             token="info-token",
             name="Info User",
             permissions=["model1", "model2"],
-            rate_limit="50/minute"
+            rate_limit="50/minute",
         )
         self.auth_manager.users["info-token"] = user
 
@@ -236,7 +241,7 @@ class TestAuthManager:
             token="rate-token",
             name="Rate User",
             permissions=["model1"],
-            rate_limit="5/minute"
+            rate_limit="5/minute",
         )
         self.auth_manager.users["rate-token"] = user
 
@@ -256,14 +261,14 @@ class TestAuthManager:
             token="limited-rate-token",
             name="Limited Rate User",
             permissions=["model1"],
-            rate_limit="2/minute"
+            rate_limit="2/minute",
         )
         self.auth_manager.users["limited-rate-token"] = user
 
         # Make requests up to limit
         assert self.auth_manager.check_rate_limit("limited-rate-token") is True
         assert self.auth_manager.check_rate_limit("limited-rate-token") is True
-        
+
         # Next request should be denied
         assert self.auth_manager.check_rate_limit("limited-rate-token") is False
 
@@ -275,7 +280,7 @@ class TestAuthManager:
             token="reset-token",
             name="Reset User",
             permissions=["model1"],
-            rate_limit="1/minute"
+            rate_limit="1/minute",
         )
         self.auth_manager.users["reset-token"] = user
 
@@ -296,15 +301,16 @@ class TestAuthManager:
 
     def test_load_users_with_defaults(self):
         """Test loading users with default values."""
-        with patch("builtins.open", mock_open()), \
-             patch("yaml.safe_load") as mock_yaml_load:
-            
+        with (
+            patch("builtins.open", mock_open()),
+            patch("yaml.safe_load") as mock_yaml_load,
+        ):
             # Mock YAML content with some default values
             mock_yaml_content = {
                 "users": [
                     {
                         "token": "minimal-token",
-                        "name": "Minimal User"
+                        "name": "Minimal User",
                         # Missing permissions and rate_limit - should use defaults
                     }
                 ]
