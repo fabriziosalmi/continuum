@@ -5,3 +5,9 @@ aiohttp
 pyyaml
 requests
 slowapi
+
+# Testing dependencies
+pytest
+pytest-asyncio
+httpx
+aioresponses
