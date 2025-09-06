@@ -1,0 +1,8 @@
+models:
+  - id: "llama3:latest"
+    provider: "ollama"
+    # L'URL base di Ollama sarà gestito tramite variabili d'ambiente
+    
+  - id: "gpt-4o"
+    provider: "openai"
+    # La chiave API di OpenAI sarà gestita tramite variabili d'ambiente

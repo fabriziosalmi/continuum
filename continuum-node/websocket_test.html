@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Continuum Node - WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .chat-box { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin: 10px 0; }
+        .input-section { margin: 10px 0; }
+        input, textarea, button { margin: 5px; padding: 8px; }
+        .message { margin: 5px 0; }
+        .user { color: blue; }
+        .assistant { color: green; }
+        .error { color: red; }
+        .system { color: gray; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Continuum Node - WebSocket Chat</h1>
+        
+        <div class="input-section">
+            <label>Token:</label>
+            <input type="text" id="token" value="dev-token-strong-and-secret" style="width: 300px;">
+            
+            <label>Modello:</label>
+            <select id="model">
+                <option value="llama3:latest">llama3:latest</option>
+                <option value="gpt-4o">gpt-4o</option>
+            </select>
+            
+            <button onclick="connect()">Connetti</button>
+            <button onclick="disconnect()">Disconnetti</button>
+        </div>
+        
+        <div id="status" class="system">Non connesso</div>
+        
+        <div id="chatBox" class="chat-box"></div>
+        
+        <div class="input-section">
+            <textarea id="messageInput" placeholder="Scrivi il tuo messaggio..." style="width: 600px; height: 60px;"></textarea>
+            <br>
+            <button onclick="sendMessage()">Invia Messaggio</button>
+            <button onclick="clearChat()">Pulisci Chat</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+
+        function updateStatus(message, type = 'system') {
+            document.getElementById('status').textContent = message;
+            document.getElementById('status').className = type;
+        }
+
+        function addMessage(message, type = 'system') {
+            const chatBox = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = message;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function connect() {
+            const token = document.getElementById('token').value;
+            if (!token) {
+                alert('Inserisci un token valido');
+                return;
+            }
+
+            try {
+                ws = new WebSocket('ws://localhost:8080/v1/chat/completions/ws');
+                
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateStatus('✅ Connesso al WebSocket', 'system');
+                    addMessage('🔗 Connessione WebSocket stabilita', 'system');
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const response = JSON.parse(event.data);
+                        
+                        if (response.error) {
+                            addMessage(`❌ Errore: ${response.error.message}`, 'error');
+                        } else if (response.choices) {
+                            const content = response.choices[0].delta.content;
+                            if (content) {
+                                // Aggiungi chunk al messaggio corrente
+                                let lastMessage = document.querySelector('.chat-box .message.assistant:last-child');
+                                if (!lastMessage || lastMessage.dataset.completed === 'true') {
+                                    // Crea nuovo messaggio
+                                    lastMessage = document.createElement('div');
+                                    lastMessage.className = 'message assistant';
+                                    lastMessage.textContent = '';
+                                    document.getElementById('chatBox').appendChild(lastMessage);
+                                }
+                                lastMessage.textContent += content;
+                                document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+                            }
+                            
+                            // Marca come completato se è l'ultimo chunk
+                            if (response.choices[0].finish_reason) {
+                                let lastMessage = document.querySelector('.chat-box .message.assistant:last-child');
+                                if (lastMessage) {
+                                    lastMessage.dataset.completed = 'true';
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        addMessage(`❌ Errore parsing: ${e.message}`, 'error');
+                    }
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    updateStatus('❌ Disconnesso', 'error');
+                    addMessage('🔗 Connessione WebSocket chiusa', 'system');
+                };
+
+                ws.onerror = function(error) {
+                    updateStatus('❌ Errore WebSocket', 'error');
+                    addMessage(`❌ Errore WebSocket: ${error}`, 'error');
+                };
+
+            } catch (e) {
+                updateStatus('❌ Errore connessione', 'error');
+                addMessage(`❌ Errore: ${e.message}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function sendMessage() {
+            if (!isConnected || !ws) {
+                alert('Prima connettiti al WebSocket');
+                return;
+            }
+
+            const messageText = document.getElementById('messageInput').value.trim();
+            if (!messageText) {
+                alert('Inserisci un messaggio');
+                return;
+            }
+
+            const token = document.getElementById('token').value;
+            const model = document.getElementById('model').value;
+
+            // Mostra il messaggio dell'utente
+            addMessage(`👤 ${messageText}`, 'user');
+
+            // Invia al server
+            const request = {
+                token: token,
+                model: model,
+                messages: [
+                    { role: "user", content: messageText }
+                ],
+                settings: {
+                    temperature: 0.7
+                }
+            };
+
+            ws.send(JSON.stringify(request));
+            
+            // Pulisci l'input
+            document.getElementById('messageInput').value = '';
+        }
+
+        function clearChat() {
+            document.getElementById('chatBox').innerHTML = '';
+        }
+
+        // Enter per inviare
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

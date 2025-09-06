@@ -1,0 +1,13 @@
+users:
+  - token: "dev-token-strong-and-secret"
+    name: "Developer"
+    permissions:
+      - "llama3:latest"
+      - "gpt-4o"
+    rate_limit: "100/minute"
+
+  - token: "guest-token-for-testing"
+    name: "Guest"
+    permissions:
+      - "llama3:latest"
+    rate_limit: "10/minute"

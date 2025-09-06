@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuum Node Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .chat-message { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .typing { animation: pulse 1.5s infinite; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="continuumDashboard()" x-init="init()">
+    
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-robot text-2xl"></i>
+                    <h1 class="text-2xl font-bold">Continuum Node</h1>
+                    <span class="bg-white/20 px-2 py-1 rounded text-sm">Dashboard</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full" :class="connected ? 'bg-green-400' : 'bg-red-400'"></div>
+                        <span x-text="connected ? 'Connesso' : 'Disconnesso'" class="text-sm"></span>
+                    </div>
+                    <button @click="showSettings = !showSettings" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded transition">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Settings Panel -->
+    <div x-show="showSettings" x-cloak class="fixed inset-0 bg-black/50 z-50" @click="showSettings = false">
+        <div class="absolute right-0 top-0 h-full w-80 bg-white shadow-xl transform transition-transform" @click.stop>
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">Impostazioni</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Token API</label>
+                        <input x-model="token" type="password" class="w-full border rounded px-3 py-2">
+                        <div class="flex space-x-2 mt-2">
+                            <button @click="token = 'dev-token-strong-and-secret'" class="text-xs bg-blue-100 px-2 py-1 rounded">Dev</button>
+                            <button @click="token = 'guest-token-for-testing'" class="text-xs bg-gray-100 px-2 py-1 rounded">Guest</button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Modello</label>
+                        <select x-model="selectedModel" class="w-full border rounded px-3 py-2">
+                            <template x-for="model in availableModels" :key="model.id">
+                                <option :value="model.id" x-text="model.id"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Temperatura</label>
+                        <input x-model="temperature" type="range" min="0" max="2" step="0.1" class="w-full">
+                        <span x-text="temperature" class="text-sm text-gray-600"></span>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Max Tokens</label>
+                        <input x-model="maxTokens" type="number" min="1" max="4000" class="w-full border rounded px-3 py-2">
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <input x-model="streamMode" type="checkbox" id="stream">
+                        <label for="stream" class="text-sm">Modalità Streaming</label>
+                    </div>
+                </div>
+                
+                <button @click="loadModels()" class="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                    Ricarica Modelli
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Sidebar Info -->
+            <div class="lg:col-span-1">
+                <!-- Status Card -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="font-semibold mb-4">Status Sistema</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Stato:</span>
+                            <span :class="health.status === 'healthy' ? 'text-green-600' : 'text-red-600'" x-text="health.status || 'Checking...'"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Modelli:</span>
+                            <span x-text="availableModels.length"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Token:</span>
+                            <span class="text-sm font-mono" x-text="token.substring(0, 8) + '...'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Models Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="font-semibold mb-4">Modelli Disponibili</h3>
+                    <div class="space-y-2">
+                        <template x-for="model in availableModels" :key="model.id">
+                            <div class="flex items-center justify-between p-2 rounded" :class="selectedModel === model.id ? 'bg-blue-100' : 'hover:bg-gray-50'">
+                                <span class="text-sm" x-text="model.id"></span>
+                                <button @click="selectedModel = model.id" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-check" x-show="selectedModel === model.id"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-lg shadow h-96 flex flex-col">
+                    
+                    <!-- Chat Header -->
+                    <div class="border-b p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-comments text-blue-600"></i>
+                                <span class="font-semibold">Chat con <span x-text="selectedModel" class="text-blue-600"></span></span>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @click="connectWebSocket()" :disabled="connected" class="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:bg-gray-400">
+                                    <i class="fas fa-plug"></i> Connetti
+                                </button>
+                                <button @click="clearChat()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-trash"></i> Pulisci
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4" id="chatContainer">
+                        <template x-for="message in messages" :key="message.id">
+                            <div class="chat-message" :class="message.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                                <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg" 
+                                     :class="message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <i :class="message.role === 'user' ? 'fas fa-user' : 'fas fa-robot'"></i>
+                                        <span class="text-xs font-medium" x-text="message.role === 'user' ? 'Tu' : selectedModel"></span>
+                                        <span class="text-xs opacity-75" x-text="new Date(message.timestamp).toLocaleTimeString()"></span>
+                                    </div>
+                                    <div x-text="message.content" class="whitespace-pre-wrap"></div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <!-- Typing Indicator -->
+                        <div x-show="isTyping" class="flex justify-start">
+                            <div class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg typing">
+                                <i class="fas fa-robot"></i>
+                                <span class="ml-2">Sta scrivendo...</span>
+                                <span class="ml-2">●●●</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="border-t p-4">
+                        <div class="flex space-x-2">
+                            <input x-model="messageInput" 
+                                   @keydown.enter="sendMessage()"
+                                   type="text" 
+                                   placeholder="Scrivi il tuo messaggio..."
+                                   class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   :disabled="!connected">
+                            <button @click="sendMessage()" 
+                                    :disabled="!connected || !messageInput.trim()"
+                                    class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500 flex items-center justify-between">
+                            <span>Premi Enter per inviare</span>
+                            <span x-show="connected" class="text-green-600">
+                                <i class="fas fa-wifi"></i> WebSocket attivo
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function continuumDashboard() {
+            return {
+                // State
+                connected: false,
+                showSettings: false,
+                health: {},
+                availableModels: [],
+                messages: [],
+                messageInput: '',
+                isTyping: false,
+                currentMessage: null,
+                ws: null,
+
+                // Settings
+                token: 'dev-token-strong-and-secret',
+                selectedModel: 'llama3:latest',
+                temperature: 0.7,
+                maxTokens: 1000,
+                streamMode: true,
+
+                async init() {
+                    await this.checkHealth();
+                    await this.loadModels();
+                    this.addSystemMessage('Benvenuto in Continuum Node! Connettiti al WebSocket per iniziare a chattare.');
+                },
+
+                async checkHealth() {
+                    try {
+                        const response = await fetch('/health');
+                        this.health = await response.json();
+                    } catch (error) {
+                        this.health = { status: 'error' };
+                        console.error('Health check failed:', error);
+                    }
+                },
+
+                async loadModels() {
+                    try {
+                        const response = await fetch('/v1/models', {
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        const data = await response.json();
+                        this.availableModels = data.data || [];
+                        if (this.availableModels.length > 0 && !this.selectedModel) {
+                            this.selectedModel = this.availableModels[0].id;
+                        }
+                    } catch (error) {
+                        console.error('Failed to load models:', error);
+                        this.addSystemMessage('Errore nel caricamento dei modelli. Verifica il token.');
+                    }
+                },
+
+                connectWebSocket() {
+                    if (this.connected) return;
+
+                    try {
+                        this.ws = new WebSocket('ws://localhost:8080/v1/chat/completions/ws');
+                        
+                        this.ws.onopen = () => {
+                            this.connected = true;
+                            this.addSystemMessage('✅ Connesso al WebSocket');
+                        };
+
+                        this.ws.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+                                this.handleWebSocketMessage(data);
+                            } catch (error) {
+                                console.error('Error parsing message:', error);
+                            }
+                        };
+
+                        this.ws.onclose = () => {
+                            this.connected = false;
+                            this.isTyping = false;
+                            this.addSystemMessage('❌ Connessione WebSocket chiusa');
+                        };
+
+                        this.ws.onerror = (error) => {
+                            this.addSystemMessage('❌ Errore WebSocket');
+                            console.error('WebSocket error:', error);
+                        };
+
+                    } catch (error) {
+                        this.addSystemMessage('❌ Impossibile connettersi al WebSocket');
+                        console.error('Connection error:', error);
+                    }
+                },
+
+                handleWebSocketMessage(data) {
+                    if (data.error) {
+                        this.isTyping = false;
+                        this.addSystemMessage(`❌ ${data.error.message}`);
+                        return;
+                    }
+
+                    if (data.choices && data.choices[0]) {
+                        const choice = data.choices[0];
+                        const content = choice.delta.content;
+
+                        if (content) {
+                            if (!this.currentMessage) {
+                                this.currentMessage = this.addMessage('assistant', '');
+                                this.isTyping = false;
+                            }
+                            this.currentMessage.content += content;
+                        }
+
+                        if (choice.finish_reason) {
+                            this.currentMessage = null;
+                        }
+                    }
+                },
+
+                sendMessage() {
+                    if (!this.connected || !this.messageInput.trim()) return;
+
+                    const message = this.messageInput.trim();
+                    this.addMessage('user', message);
+                    
+                    const request = {
+                        token: this.token,
+                        model: this.selectedModel,
+                        messages: [{ role: 'user', content: message }],
+                        settings: {
+                            temperature: parseFloat(this.temperature),
+                            max_tokens: parseInt(this.maxTokens)
+                        }
+                    };
+
+                    this.ws.send(JSON.stringify(request));
+                    this.messageInput = '';
+                    this.isTyping = true;
+                    this.scrollToBottom();
+                },
+
+                addMessage(role, content) {
+                    const message = {
+                        id: Date.now(),
+                        role,
+                        content,
+                        timestamp: new Date()
+                    };
+                    this.messages.push(message);
+                    this.$nextTick(() => this.scrollToBottom());
+                    return message;
+                },
+
+                addSystemMessage(content) {
+                    this.addMessage('system', content);
+                },
+
+                clearChat() {
+                    this.messages = [];
+                    this.currentMessage = null;
+                    this.isTyping = false;
+                    this.addSystemMessage('Chat pulita');
+                },
+
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const container = document.getElementById('chatContainer');
+                        container.scrollTop = container.scrollHeight;
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

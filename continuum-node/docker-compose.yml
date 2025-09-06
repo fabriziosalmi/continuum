@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  continuum-node:
+    build: .
+    container_name: continuum-node
+    ports:
+      - "8080:8080" # Bridge HTTP
+      # - "8989:8989" # Protocollo Continuum TCP (se implementato)
+    volumes:
+      - ./config:/app/config:ro # Monta la config in sola lettura
+    environment:
+      # Passa questo per permettere al container di raggiungere Ollama
+      # in esecuzione sull'host. Su Linux, potrebbe essere necessario usare
+      # "host.docker.internal:11434" o l'IP del bridge Docker.
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Le chiavi API devono essere fornite qui per la produzione
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-"your_openai_api_key_here"}
+      # Configurazioni del server
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8080
+      - TCP_HOST=0.0.0.0
+      - TCP_PORT=8989
+      - ENABLE_TCP_SERVER=false
+    # Aggiunge il supporto per 'host.docker.internal' su Linux
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    
+    # Opzioni per il logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
