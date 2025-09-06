@@ -1,0 +1,73 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11']
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r continuum-node/requirements.txt
+
+    - name: Lint with ruff - Check
+      run: |
+        cd continuum-node
+        ruff check .
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
+
+    - name: Lint with ruff - Format Check
+      run: |
+        cd continuum-node
+        ruff format --check .
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
+
+    - name: Test with pytest
+      run: |
+        cd continuum-node
+        pytest
+      env:
+        PYTHONPATH: ${{ github.workspace }}/continuum-node
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Build Docker Image
+      run: |
+        cd continuum-node
+        docker build . -t continuum:latest
