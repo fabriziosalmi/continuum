@@ -5,8 +5,7 @@ aiohttp
 pyyaml
 requests
 slowapi
-
-# Testing dependencies
+ruff
 pytest
 pytest-asyncio
 httpx
